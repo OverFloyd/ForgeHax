@@ -9,17 +9,17 @@ buildscript {
       return out.toString().trim()
     }.call()
 
-    forgehaxVersion = "3.1.0-${forgehaxCommit}"
+    forgehaxVersion = "3.2.0-${forgehaxCommit}"
 
-    minecraftVersion = '1.16.2'
-    forgeVersion = "${minecraftVersion}-33.0.5"
+    minecraftVersion = '1.16.4'
+    forgeVersion = '35.0.7'
 
     fmlVersion = '2.0.0-milestone.1'
     lombokVersion = '1.18.12'
 
-    mcpVersion = '1.16.1'
+    mcpVersion = '1.16.3'
     mcpChannel = 'snapshot'
-    mcpMapping = '20200707'
+    mcpMapping = '20201028'
   }
   repositories {
     mavenCentral()
@@ -100,7 +100,7 @@ dependencies {
   compileOnly group: 'org.projectlombok', name: 'lombok', version: lombokVersion
   annotationProcessor group: 'org.projectlombok', name: 'lombok', version: lombokVersion
 
-  minecraft "net.minecraftforge:forge:${forgeVersion}"
+  minecraft "net.minecraftforge:forge:${minecraftVersion}-${forgeVersion}"
 
   testCompile group: 'junit', name: 'junit', version: '4.12'
   testCompile group: 'org.mockito', name: 'mockito-core', version: '2.15.0'

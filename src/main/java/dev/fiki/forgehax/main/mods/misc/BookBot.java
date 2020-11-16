@@ -89,6 +89,8 @@ public class BookBot extends ToggleMod {
         .description("Start book bot. Can optionally set the starting position")
         .argument(Arguments.newIntegerArgument()
             .label("page")
+            .optional()
+            .defaultValue(0)
             .build())
         .executor(args -> {
           if (writerThread != null) {
@@ -414,7 +416,7 @@ public class BookBot extends ToggleMod {
             .replaceAll(NUMBER_TOKEN, "" + getBook())
             .trim()));
       }
-      Common.sendNetworkPacket(new CEditBookPacket(stack, signBook, Hand.MAIN_HAND));
+      Common.sendNetworkPacket(new CEditBookPacket(stack, signBook, Hand.MAIN_HAND.ordinal()));
     }
 
     @Override
