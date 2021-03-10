@@ -1,15 +1,15 @@
 package dev.fiki.forgehax.main.mods.player;
 
-import dev.fiki.forgehax.main.util.cmd.settings.DoubleSetting;
-import dev.fiki.forgehax.main.util.entity.EntityUtils;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
+import dev.fiki.forgehax.api.cmd.settings.DoubleSetting;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.events.entity.LivingUpdateEvent;
+import dev.fiki.forgehax.api.extension.EntityEx;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.attributes.Attributes;
 import net.minecraft.entity.passive.horse.AbstractHorseEntity;
-import net.minecraftforge.event.entity.living.LivingEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import static dev.fiki.forgehax.main.Common.getLocalPlayer;
 import static dev.fiki.forgehax.main.Common.getMountedEntity;
@@ -45,9 +45,9 @@ public class HorseStats extends ToggleMod {
     }
   }
 
-  @SubscribeEvent
-  public void onLivingUpdate(LivingEvent.LivingUpdateEvent event) {
-    if (EntityUtils.isDrivenByPlayer(event.getEntity())
+  @SubscribeListener
+  public void onLivingUpdate(LivingUpdateEvent event) {
+    if (EntityEx.isDrivenByPlayer(event.getLiving())
         && getMountedEntity() instanceof AbstractHorseEntity) {
 
       double newSpeed = speed.getValue();

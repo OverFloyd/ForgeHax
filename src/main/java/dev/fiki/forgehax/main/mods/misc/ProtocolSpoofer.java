@@ -1,17 +1,17 @@
 package dev.fiki.forgehax.main.mods.misc;
 
-import dev.fiki.forgehax.api.mapper.FieldMapping;
+import dev.fiki.forgehax.api.asm.MapField;
+import dev.fiki.forgehax.api.cmd.flag.EnumFlag;
+import dev.fiki.forgehax.api.cmd.settings.IntegerSetting;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
+import dev.fiki.forgehax.api.reflection.types.ReflectionField;
 import dev.fiki.forgehax.asm.events.packet.PacketOutboundEvent;
-import dev.fiki.forgehax.main.util.cmd.flag.EnumFlag;
-import dev.fiki.forgehax.main.util.cmd.settings.IntegerSetting;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
-import dev.fiki.forgehax.main.util.reflection.types.ReflectionField;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.network.handshake.client.CHandshakePacket;
 import net.minecraft.util.SharedConstants;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 @RegisterMod(
     name = "ProtocolSpoofer",
@@ -21,7 +21,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 )
 @RequiredArgsConstructor
 public class ProtocolSpoofer extends ToggleMod {
-  @FieldMapping(parentClass = CHandshakePacket.class, value = "protocolVersion")
+  @MapField(parentClass = CHandshakePacket.class, value = "protocolVersion")
   private final ReflectionField<Integer> CKeepAlivePacket_protocolVersion;
 
   private final IntegerSetting version = newIntegerSetting()
@@ -30,7 +30,7 @@ public class ProtocolSpoofer extends ToggleMod {
       .defaultTo(SharedConstants.getVersion().getProtocolVersion())
       .build();
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onPacketEvent(PacketOutboundEvent event) {
     if (event.getPacket() instanceof CHandshakePacket) {
       CKeepAlivePacket_protocolVersion.set(event.getPacket(), version.intValue());

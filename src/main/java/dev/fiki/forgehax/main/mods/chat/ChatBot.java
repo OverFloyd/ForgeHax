@@ -1,22 +1,22 @@
 package dev.fiki.forgehax.main.mods.chat;
 
 import com.google.common.collect.Sets;
+import dev.fiki.forgehax.api.ArrayHelper;
+import dev.fiki.forgehax.api.cmd.settings.BooleanSetting;
+import dev.fiki.forgehax.api.cmd.settings.IntegerSetting;
+import dev.fiki.forgehax.api.cmd.settings.collections.CustomSettingSet;
+import dev.fiki.forgehax.api.common.PriorityEnum;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.events.ChatMessageEvent;
+import dev.fiki.forgehax.api.events.PlayerConnectEvent;
+import dev.fiki.forgehax.api.events.entity.LocalPlayerUpdateEvent;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.spam.SpamEntry;
+import dev.fiki.forgehax.api.spam.SpamMessage;
+import dev.fiki.forgehax.api.spam.SpamTokens;
+import dev.fiki.forgehax.api.spam.SpamTrigger;
 import dev.fiki.forgehax.main.services.SpamService;
-import dev.fiki.forgehax.main.util.ArrayHelper;
-import dev.fiki.forgehax.main.util.cmd.settings.BooleanSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.IntegerSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.collections.CustomSettingSet;
-import dev.fiki.forgehax.main.util.common.PriorityEnum;
-import dev.fiki.forgehax.main.util.events.ChatMessageEvent;
-import dev.fiki.forgehax.main.util.events.LocalPlayerUpdateEvent;
-import dev.fiki.forgehax.main.util.events.PlayerConnectEvent;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.spam.SpamEntry;
-import dev.fiki.forgehax.main.util.spam.SpamMessage;
-import dev.fiki.forgehax.main.util.spam.SpamTokens;
-import dev.fiki.forgehax.main.util.spam.SpamTrigger;
 import joptsimple.internal.Strings;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 //@RegisterMod(
 //    name = "ChatBot",
@@ -296,7 +296,7 @@ public class ChatBot extends ToggleMod {
 //        .build();
 //  }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onTick(LocalPlayerUpdateEvent event) {
     if (SpamService.isEmpty() && !spams.isEmpty()) {
       for (SpamEntry e : spams) {
@@ -314,7 +314,7 @@ public class ChatBot extends ToggleMod {
     }
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onChat(ChatMessageEvent event) {
     if (event.getSender().isLocalPlayer()) {
       return;
@@ -363,7 +363,7 @@ public class ChatBot extends ToggleMod {
             });
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onPlayerConnect(PlayerConnectEvent.Join event) {
     final String player = event.getProfile() != null ? event.getProfile().getName() : "null";
     spams
@@ -392,7 +392,7 @@ public class ChatBot extends ToggleMod {
             });
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onPlayerDisconnect(PlayerConnectEvent.Leave event) {
     final String player = event.getProfile() != null ? event.getProfile().getName() : "null";
     spams

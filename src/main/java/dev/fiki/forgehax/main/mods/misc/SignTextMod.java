@@ -1,11 +1,13 @@
 package dev.fiki.forgehax.main.mods.misc;
 
-import dev.fiki.forgehax.api.mapper.FieldMapping;
+import dev.fiki.forgehax.api.asm.MapField;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.events.game.MouseInputEvent;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
+import dev.fiki.forgehax.api.reflection.types.ReflectionField;
 import dev.fiki.forgehax.main.Common;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
-import dev.fiki.forgehax.main.util.reflection.types.ReflectionField;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.tileentity.SignTileEntity;
 import net.minecraft.tileentity.TileEntity;
@@ -13,8 +15,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextFormatting;
-import net.minecraftforge.client.event.InputEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import java.awt.*;
 import java.awt.datatransfer.StringSelection;
@@ -26,11 +26,11 @@ import java.awt.datatransfer.StringSelection;
 )
 @RequiredArgsConstructor
 public class SignTextMod extends ToggleMod {
-  @FieldMapping(parentClass = SignTileEntity.class, value = "signText")
+  @MapField(parentClass = SignTileEntity.class, value = "signText")
   private final ReflectionField<ITextComponent[]> SignTileEntity_signText;
 
-  @SubscribeEvent
-  public void onInput(InputEvent.MouseInputEvent event) {
+  @SubscribeListener
+  public void onInput(MouseInputEvent event) {
     // TODO: 1.15 mouse input
     if (event.getButton() == 2 /*&& Mouse.getEventButtonState()*/) { // on middle click
       RayTraceResult result = Common.getLocalPlayer().pick(999, 0, false);

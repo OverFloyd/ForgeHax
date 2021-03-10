@@ -1,22 +1,22 @@
 package dev.fiki.forgehax.main.mods.render;
 
 import com.google.common.collect.Sets;
-import dev.fiki.forgehax.api.mapper.MethodMapping;
-import dev.fiki.forgehax.main.util.cmd.argument.Arguments;
-import dev.fiki.forgehax.main.util.cmd.flag.EnumFlag;
-import dev.fiki.forgehax.main.util.cmd.settings.BooleanSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.collections.SimpleSettingSet;
-import dev.fiki.forgehax.main.util.events.LocalPlayerUpdateEvent;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
-import dev.fiki.forgehax.main.util.reflection.types.ReflectionMethod;
+import dev.fiki.forgehax.api.asm.MapMethod;
+import dev.fiki.forgehax.api.cmd.argument.Arguments;
+import dev.fiki.forgehax.api.cmd.flag.EnumFlag;
+import dev.fiki.forgehax.api.cmd.settings.BooleanSetting;
+import dev.fiki.forgehax.api.cmd.settings.collections.SimpleSettingSet;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.events.entity.LivingUpdateEvent;
+import dev.fiki.forgehax.api.events.entity.LocalPlayerUpdateEvent;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
+import dev.fiki.forgehax.api.reflection.types.ReflectionMethod;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.potion.Effect;
 import net.minecraft.potion.Effects;
-import net.minecraftforge.event.entity.living.LivingEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 @RegisterMod(
     name = "AntiPotionEffects",
@@ -25,7 +25,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 )
 @RequiredArgsConstructor
 public class AntiEffectsMod extends ToggleMod {
-  @MethodMapping(parentClass = LivingEntity.class, value = "resetPotionEffectMetadata")
+  @MapMethod(parentClass = LivingEntity.class, value = "resetPotionEffectMetadata")
   private final ReflectionMethod<Void> LivingEntity_resetPotionEffectMetadata;
 
   private final BooleanSetting noParticles = newBooleanSetting()
@@ -48,18 +48,18 @@ public class AntiEffectsMod extends ToggleMod {
       .defaultsTo(Effects.WITHER)
       .build();
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onLocalPlayerUpdate(LocalPlayerUpdateEvent event) {
-    effects.forEach(event.getEntityLiving()::removeActivePotionEffect);
+    effects.forEach(event.getPlayer()::removeActivePotionEffect);
 
     // removes particle effect
-    LivingEntity_resetPotionEffectMetadata.invoke(event.getEntityLiving());
+    LivingEntity_resetPotionEffectMetadata.invoke(event.getPlayer());
   }
 
-  @SubscribeEvent
-  public void onLivingUpdate(LivingEvent.LivingUpdateEvent event) {
+  @SubscribeListener
+  public void onLivingUpdate(LivingUpdateEvent event) {
     if (noParticles.getValue()) {
-      LivingEntity_resetPotionEffectMetadata.invoke(event.getEntityLiving());
+      LivingEntity_resetPotionEffectMetadata.invoke(event.getLiving());
     }
   }
 }

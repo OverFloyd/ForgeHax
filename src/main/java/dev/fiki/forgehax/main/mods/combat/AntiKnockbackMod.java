@@ -1,18 +1,19 @@
 package dev.fiki.forgehax.main.mods.combat;
 
-import dev.fiki.forgehax.api.mapper.FieldMapping;
+import dev.fiki.forgehax.api.asm.MapField;
+import dev.fiki.forgehax.api.cmd.settings.BooleanSetting;
+import dev.fiki.forgehax.api.cmd.settings.DoubleSetting;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.math.VectorUtil;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
+import dev.fiki.forgehax.api.reflection.types.ReflectionField;
 import dev.fiki.forgehax.asm.events.movement.ApplyCollisionMotionEvent;
 import dev.fiki.forgehax.asm.events.movement.EntityBlockSlipApplyEvent;
 import dev.fiki.forgehax.asm.events.movement.PushedByBlockEvent;
 import dev.fiki.forgehax.asm.events.movement.PushedByLiquidEvent;
 import dev.fiki.forgehax.asm.events.packet.PacketInboundEvent;
-import dev.fiki.forgehax.main.util.cmd.settings.BooleanSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.DoubleSetting;
-import dev.fiki.forgehax.main.util.math.VectorUtils;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
-import dev.fiki.forgehax.main.util.reflection.types.ReflectionField;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
@@ -22,7 +23,6 @@ import net.minecraft.network.play.server.SEntityStatusPacket;
 import net.minecraft.network.play.server.SEntityVelocityPacket;
 import net.minecraft.network.play.server.SExplosionPacket;
 import net.minecraft.util.math.vector.Vector3d;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import java.util.ConcurrentModificationException;
 
@@ -35,18 +35,18 @@ import static dev.fiki.forgehax.main.Common.*;
 )
 @RequiredArgsConstructor
 public class AntiKnockbackMod extends ToggleMod {
-  @FieldMapping(parentClass = SEntityVelocityPacket.class, value = "motionX")
+  @MapField(parentClass = SEntityVelocityPacket.class, value = "motionX")
   private final ReflectionField<Integer> SEntityVelocityPacket_motionX;
-  @FieldMapping(parentClass = SEntityVelocityPacket.class, value = "motionY")
+  @MapField(parentClass = SEntityVelocityPacket.class, value = "motionY")
   private final ReflectionField<Integer> SEntityVelocityPacket_motionY;
-  @FieldMapping(parentClass = SEntityVelocityPacket.class, value = "motionZ")
+  @MapField(parentClass = SEntityVelocityPacket.class, value = "motionZ")
   private final ReflectionField<Integer> SEntityVelocityPacket_motionZ;
 
-  @FieldMapping(parentClass = SExplosionPacket.class, value = "motionX")
+  @MapField(parentClass = SExplosionPacket.class, value = "motionX")
   private final ReflectionField<Float> SExplosionPacket_motionX;
-  @FieldMapping(parentClass = SExplosionPacket.class, value = "motionY")
+  @MapField(parentClass = SExplosionPacket.class, value = "motionY")
   private final ReflectionField<Float> SExplosionPacket_motionY;
-  @FieldMapping(parentClass = SExplosionPacket.class, value = "motionZ")
+  @MapField(parentClass = SExplosionPacket.class, value = "motionZ")
   private final ReflectionField<Float> SExplosionPacket_motionZ;
 
   private final DoubleSetting multiplier_x = newDoubleSetting()
@@ -150,20 +150,20 @@ public class AntiKnockbackMod extends ToggleMod {
   /**
    * Stops TNT and knockback velocity
    */
-  @SubscribeEvent
+  @SubscribeListener
   public void onPacketReceived(PacketInboundEvent event) {
     if (!isInWorld()) {
       return;
     } else if (explosions.getValue() && event.getPacket() instanceof SExplosionPacket) {
       Vector3d multiplier = getMultiplier();
       Vector3d motion = getPacketMotion(event.getPacket());
-      setPacketMotion(event.getPacket(), VectorUtils.multiplyBy(motion, multiplier));
+      setPacketMotion(event.getPacket(), VectorUtil.multiplyBy(motion, multiplier));
     } else if (velocity.getValue() && event.getPacket() instanceof SEntityVelocityPacket) {
       if (((SEntityVelocityPacket) event.getPacket()).getEntityID() == getLocalPlayer().getEntityId()) {
         Vector3d multiplier = getMultiplier();
         if (multiplier.lengthSquared() > 0.D) {
           setPacketMotion(event.getPacket(),
-              VectorUtils.multiplyBy(getPacketMotion(event.getPacket()), multiplier));
+              VectorUtil.multiplyBy(getPacketMotion(event.getPacket()), multiplier));
         } else {
           event.setCanceled(true);
         }
@@ -182,7 +182,7 @@ public class AntiKnockbackMod extends ToggleMod {
             }
           }
         } catch (ConcurrentModificationException e) {
-          getLogger().warn("ConcurrentModificationException caused by packet::getEntity");
+          log.warn("ConcurrentModificationException caused by packet::getEntity");
           event.setCanceled(true);
         }
       }
@@ -192,26 +192,26 @@ public class AntiKnockbackMod extends ToggleMod {
   /**
    * Stops velocity from collision
    */
-  @SubscribeEvent
+  @SubscribeListener
   public void onApplyCollisionMotion(ApplyCollisionMotionEvent event) {
     if (push.getValue() && getLocalPlayer() != null && getLocalPlayer().equals(event.getEntity())) {
       addEntityVelocity(
           event.getEntity(),
-          VectorUtils.multiplyBy(
+          VectorUtil.multiplyBy(
               new Vector3d(event.getMotionX(), event.getMotionY(), event.getMotionZ()),
               getMultiplier()));
       event.setCanceled(true);
     }
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onPushOutOfBlocks(PushedByBlockEvent event) {
     if (blocks.getValue()) {
       event.setCanceled(true);
     }
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onBlockSlip(EntityBlockSlipApplyEvent event) {
     if (slipping.getValue()
         && getLocalPlayer() != null
@@ -220,7 +220,7 @@ public class AntiKnockbackMod extends ToggleMod {
     }
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onPushedByLiquid(PushedByLiquidEvent event) {
     if (water.isEnabled()) {
       event.setCanceled(true);

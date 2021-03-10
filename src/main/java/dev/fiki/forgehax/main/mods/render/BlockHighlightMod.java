@@ -1,11 +1,11 @@
 package dev.fiki.forgehax.main.mods.render;
 
-import dev.fiki.forgehax.main.util.cmd.settings.ColorSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.FloatSetting;
-import dev.fiki.forgehax.main.util.color.Colors;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
+import dev.fiki.forgehax.api.cmd.settings.ColorSetting;
+import dev.fiki.forgehax.api.cmd.settings.FloatSetting;
+import dev.fiki.forgehax.api.color.Colors;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
 
 @RegisterMod(
     name = "BlockHighlight",
@@ -31,7 +31,6 @@ public class BlockHighlightMod extends ToggleMod {
     return colorVal / 255.f;
   }
 
-//  @SubscribeEvent
 //  public void onRenderBoxPre(DrawBlockBoundingBoxEvent.Pre event) {
 //    GlStateManager.disableDepthTest();
 //    GlStateManager.lineWidth(width.get());
@@ -41,7 +40,6 @@ public class BlockHighlightMod extends ToggleMod {
 //    event.blue = toFloat(blue.get());
 //  }
 //
-//  @SubscribeEvent
 //  public void onRenderBoxPost(DrawBlockBoundingBoxEvent.Post event) {
 //    GlStateManager.enableDepthTest();
 //  }

@@ -1,43 +1,40 @@
 package dev.fiki.forgehax.main.mods.player;
 
 import com.google.common.collect.Lists;
-import dev.fiki.forgehax.api.mapper.FieldMapping;
-import dev.fiki.forgehax.asm.events.BlockControllerProcessEvent;
-import dev.fiki.forgehax.main.managers.RotationManager;
-import dev.fiki.forgehax.main.managers.RotationManager.RotationState.Local;
-import dev.fiki.forgehax.main.util.BlockHelper;
-import dev.fiki.forgehax.main.util.BlockHelper.BlockTraceInfo;
-import dev.fiki.forgehax.main.util.BlockHelper.UniqueBlock;
-import dev.fiki.forgehax.main.util.Utils;
-import dev.fiki.forgehax.main.util.cmd.settings.BooleanSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.DoubleSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.KeyBindingSetting;
-import dev.fiki.forgehax.main.util.common.PriorityEnum;
-import dev.fiki.forgehax.main.util.entity.EntityUtils;
-import dev.fiki.forgehax.main.util.entity.LocalPlayerUtils;
-import dev.fiki.forgehax.main.util.events.LocalPlayerUpdateEvent;
-import dev.fiki.forgehax.main.util.key.KeyConflictContexts;
-import dev.fiki.forgehax.main.util.key.KeyInputs;
-import dev.fiki.forgehax.main.util.math.Angle;
-import dev.fiki.forgehax.main.util.math.VectorUtils;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
-import dev.fiki.forgehax.main.util.reflection.types.ReflectionField;
+import dev.fiki.forgehax.api.BlockHelper;
+import dev.fiki.forgehax.api.BlockHelper.BlockTraceInfo;
+import dev.fiki.forgehax.api.BlockHelper.UniqueBlock;
+import dev.fiki.forgehax.api.asm.MapField;
+import dev.fiki.forgehax.api.cmd.settings.BooleanSetting;
+import dev.fiki.forgehax.api.cmd.settings.DoubleSetting;
+import dev.fiki.forgehax.api.cmd.settings.KeyBindingSetting;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.events.entity.LocalPlayerUpdateEvent;
+import dev.fiki.forgehax.api.events.entity.PlayerRotationEvent;
+import dev.fiki.forgehax.api.extension.EntityEx;
+import dev.fiki.forgehax.api.extension.LocalPlayerEx;
+import dev.fiki.forgehax.api.key.KeyConflictContexts;
+import dev.fiki.forgehax.api.key.KeyInputs;
+import dev.fiki.forgehax.api.math.Angle;
+import dev.fiki.forgehax.api.math.VectorUtil;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
+import dev.fiki.forgehax.api.reflection.types.ReflectionField;
+import dev.fiki.forgehax.asm.events.game.BlockControllerProcessEvent;
 import lombok.RequiredArgsConstructor;
+import lombok.experimental.ExtensionMethod;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.material.Material;
+import net.minecraft.client.entity.player.ClientPlayerEntity;
 import net.minecraft.client.multiplayer.PlayerController;
-import net.minecraft.network.play.client.CAnimateHandPacket;
 import net.minecraft.util.Direction;
-import net.minecraft.util.Hand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.BlockRayTraceResult;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.vector.Vector3d;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -51,8 +48,9 @@ import static dev.fiki.forgehax.main.Common.*;
     category = Category.PLAYER
 )
 @RequiredArgsConstructor
-public class Nuker extends ToggleMod implements RotationManager.MovementUpdateListener {
-  @FieldMapping(parentClass = PlayerController.class, value = "curBlockDamageMP")
+@ExtensionMethod({LocalPlayerEx.class, EntityEx.class})
+public class Nuker extends ToggleMod {
+  @MapField(parentClass = PlayerController.class, value = "curBlockDamageMP")
   private final ReflectionField<Float> PlayerController_curBlockDamageMP;
 
   private final List<Block> targets = Lists.newArrayList();
@@ -144,12 +142,12 @@ public class Nuker extends ToggleMod implements RotationManager.MovementUpdateLi
   }
 
   private boolean isNeighborsLiquid(UniqueBlock ub) {
-    return filter_liquids.getValue()
-        && Arrays.stream(Direction.values())
-        .map(side -> ub.getPos().offset(side))
-        .map(getWorld()::getBlockState)
-        .map(BlockState::getMaterial)
-        .anyMatch(Material::isLiquid);
+    return filter_liquids.getValue() &&
+        Arrays.stream(Direction.values())
+            .map(side -> ub.getPos().offset(side))
+            .map(getWorld()::getBlockState)
+            .map(BlockState::getMaterial)
+            .anyMatch(Material::isLiquid);
   }
 
   private double getHeightBias(UniqueBlock ub) {
@@ -178,22 +176,14 @@ public class Nuker extends ToggleMod implements RotationManager.MovementUpdateLi
 
   @Override
   protected void onEnabled() {
-    RotationManager.getManager().register(this, PriorityEnum.HIGH);
     printInform("Select blocks by looking at it and pressing %s", selectBind.getKeyName());
   }
 
-  @Override
-  protected void onDisabled() {
-    RotationManager.getManager().unregister(this);
-  }
-
-  @SubscribeEvent
+  @SubscribeListener
   public void onUpdate(LocalPlayerUpdateEvent event) {
     if (selectBind.isKeyDown() && attackToggle.compareAndSet(false, true)) {
       Block info = Blocks.AIR;
-      BlockRayTraceResult tr = LocalPlayerUtils.getBlockViewTrace();
-
-      getLogger().info(tr);
+      BlockRayTraceResult tr = getLocalPlayer().getBlockViewTrace();
 
       if (RayTraceResult.Type.MISS.equals(tr.getType()) && !targets.isEmpty()) {
         Block ub = targets.remove(targets.size() - 1);
@@ -220,71 +210,65 @@ public class Nuker extends ToggleMod implements RotationManager.MovementUpdateLi
     }
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onBlockClick(BlockControllerProcessEvent event) {
     if (currentTarget != null) {
       event.setLeftClicked(false); // no block manual breaking while the nuker is running
     }
   }
 
-  @Override
-  public void onLocalPlayerMovementUpdate(Local state) {
+  @SubscribeListener
+  public void onLocalPlayerMovementUpdate(PlayerRotationEvent event) {
     if (targets.isEmpty()) {
       resetBlockBreaking();
       return;
     }
 
-    final Vector3d eyes = EntityUtils.getEyePos(getLocalPlayer());
-    final Vector3d dir =
-        client_angles.getValue()
-            ? LocalPlayerUtils.getDirectionVector()
-            : LocalPlayerUtils.getServerDirectionVector();
+    final ClientPlayerEntity lp = getLocalPlayer();
+    final Vector3d eyes = lp.getEyePos();
+    final Vector3d dir = client_angles.getValue()
+        ? lp.getDirectionVector()
+        : lp.getServerDirectionVector();
 
     BlockTraceInfo trace = null;
 
     if (currentTarget != null) {
       // verify the current target is still valid
-      trace =
-          Optional.of(currentTarget)
-              .filter(pos -> !getWorld().isAirBlock(pos))
-              .map(BlockHelper::newUniqueBlock)
-              .filter(this::isTargeting)
-              .filter(this::isInBoundary)
-              .filter(ub -> !isNeighborsLiquid(ub))
-              .map(ub -> BlockHelper.getVisibleBlockSideTrace(eyes, dir, ub.getPos()))
-              .orElse(null);
+      trace = Optional.of(currentTarget)
+          .filter(pos -> !getWorld().isAirBlock(pos))
+          .map(BlockHelper::newUniqueBlock)
+          .filter(this::isTargeting)
+          .filter(this::isInBoundary)
+          .filter(ub -> !isNeighborsLiquid(ub))
+          .map(ub -> BlockHelper.getVisibleBlockSideTrace(eyes, dir, ub.getPos()))
+          .orElse(null);
       if (trace == null) {
         resetBlockBreaking();
       }
     }
 
     if (currentTarget == null) {
-      List<UniqueBlock> blocks =
-          BlockHelper.getBlocksInRadius(eyes, getPlayerController().getBlockReachDistance())
-              .stream()
-              .filter(pos -> !getWorld().isAirBlock(pos))
-              .map(BlockHelper::newUniqueBlock)
-              .filter(this::isTargeting)
-              .filter(this::isInBoundary)
-              .filter(ub -> !isNeighborsLiquid(ub))
-              .sorted(
-                  Comparator.comparingDouble(this::getHeightBias)
-                      .thenComparing(
-                          ub -> VectorUtils.getCrosshairDistance(eyes, dir, ub.getCenteredPos())))
-              .collect(Collectors.toList());
+      List<UniqueBlock> blocks = BlockHelper.getBlocksInRadius(eyes, getPlayerController().getBlockReachDistance())
+          .stream()
+          .filter(pos -> !getWorld().isAirBlock(pos))
+          .map(BlockHelper::newUniqueBlock)
+          .filter(this::isTargeting)
+          .filter(this::isInBoundary)
+          .filter(ub -> !isNeighborsLiquid(ub))
+          .sorted(Comparator.comparingDouble(this::getHeightBias)
+              .thenComparing(ub -> VectorUtil.getCrosshairDistance(eyes, dir, ub.getCenteredPos())))
+          .collect(Collectors.toList());
 
       if (blocks.isEmpty()) {
         resetBlockBreaking();
         return;
       }
 
-      trace =
-          blocks
-              .stream()
-              .map(ub -> BlockHelper.getVisibleBlockSideTrace(eyes, dir, ub.getPos()))
-              .filter(Objects::nonNull)
-              .findFirst()
-              .orElse(null);
+      trace = blocks.stream()
+          .map(ub -> BlockHelper.getVisibleBlockSideTrace(eyes, dir, ub.getPos()))
+          .filter(Objects::nonNull)
+          .findFirst()
+          .orElse(null);
     }
 
     if (trace == null) {
@@ -292,18 +276,17 @@ public class Nuker extends ToggleMod implements RotationManager.MovementUpdateLi
       return;
     }
 
-    Angle va = Utils.getLookAtAngles(trace.getHitVec());
-    state.setServerAngles(va);
+    Angle va = lp.getLookAngles(trace.getHitVec());
+    event.setViewAngles(va);
 
     final BlockTraceInfo tr = trace;
-    state.invokeLater(
-        rs -> {
-          if (getPlayerController().onPlayerDamageBlock(tr.getPos(), tr.getOppositeSide())) {
-            getNetworkManager().sendPacket(new CAnimateHandPacket(Hand.MAIN_HAND));
-            updateBlockBreaking(tr.getPos());
-          } else {
-            resetBlockBreaking();
-          }
-        });
+    event.onFocusGained(() -> {
+      if (getPlayerController().onPlayerDamageBlock(tr.getPos(), tr.getOppositeSide())) {
+        lp.swingHandSilently();
+        updateBlockBreaking(tr.getPos());
+      } else {
+        resetBlockBreaking();
+      }
+    });
   }
 }

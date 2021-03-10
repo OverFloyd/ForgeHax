@@ -1,20 +1,22 @@
 package dev.fiki.forgehax.main.mods.player;
 
-import dev.fiki.forgehax.api.mapper.FieldMapping;
+import dev.fiki.forgehax.api.asm.MapField;
+import dev.fiki.forgehax.api.extension.LocalPlayerEx;
+import dev.fiki.forgehax.api.math.Angle;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
+import dev.fiki.forgehax.api.reflection.types.ReflectionField;
 import dev.fiki.forgehax.asm.events.packet.PacketInboundEvent;
-import dev.fiki.forgehax.main.Common;
-import dev.fiki.forgehax.main.util.entity.LocalPlayerUtils;
-import dev.fiki.forgehax.main.util.math.Angle;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
-import dev.fiki.forgehax.main.util.reflection.types.ReflectionField;
 import lombok.RequiredArgsConstructor;
+import lombok.experimental.ExtensionMethod;
 import net.minecraft.network.play.server.SPlayerPositionLookPacket;
 import net.minecraft.network.play.server.SPlayerPositionLookPacket.Flags;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import java.util.Arrays;
+
+import static dev.fiki.forgehax.main.Common.getLocalPlayer;
 
 @RegisterMod(
     name = "NoRotate",
@@ -22,19 +24,20 @@ import java.util.Arrays;
     category = Category.PLAYER
 )
 @RequiredArgsConstructor
+@ExtensionMethod({LocalPlayerEx.class})
 public class NoRotate extends ToggleMod {
-  @FieldMapping(parentClass = SPlayerPositionLookPacket.class, value = "yaw")
+  @MapField(parentClass = SPlayerPositionLookPacket.class, value = "yaw")
   private final ReflectionField<Float> SPlayerPositionLookPacket_yaw;
 
-  @FieldMapping(parentClass = SPlayerPositionLookPacket.class, value = "pitch")
+  @MapField(parentClass = SPlayerPositionLookPacket.class, value = "pitch")
   private final ReflectionField<Float> SPlayerPositionLookPacket_pitch;
 
   @SubscribeEvent
   public void onPacketReceived(PacketInboundEvent event) {
     if (event.getPacket() instanceof SPlayerPositionLookPacket) {
       SPlayerPositionLookPacket packet = (SPlayerPositionLookPacket) event.getPacket();
-      if (Common.getLocalPlayer() != null) {
-        Angle angle = LocalPlayerUtils.getViewAngles();
+      if (getLocalPlayer() != null) {
+        Angle angle = getLocalPlayer().getViewAngles();
 
         packet.getFlags().removeAll(Arrays.asList(Flags.X_ROT, Flags.Y_ROT));
 

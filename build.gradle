@@ -1,26 +1,4 @@
 buildscript {
-  ext {
-    forgehaxCommit = { ->
-      def out = new ByteArrayOutputStream()
-      exec {
-        commandLine 'git', 'rev-parse', '--short', 'HEAD'
-        standardOutput out
-      }
-      return out.toString().trim()
-    }.call()
-
-    forgehaxVersion = "3.2.0-${forgehaxCommit}"
-
-    minecraftVersion = '1.16.4'
-    forgeVersion = '35.0.7'
-
-    fmlVersion = '2.0.0-milestone.1'
-    lombokVersion = '1.18.12'
-
-    mcpVersion = '1.16.3'
-    mcpChannel = 'snapshot'
-    mcpMapping = '20201028'
-  }
   repositories {
     mavenCentral()
     maven { url "http://files.minecraftforge.net/maven" }
@@ -28,6 +6,38 @@ buildscript {
   dependencies {
     classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '3.+', changing: true
   }
+}
+
+ext {
+  forgehaxCommit = { ->
+    try {
+      def out = new ByteArrayOutputStream()
+      exec {
+        commandLine 'git', 'rev-parse', '--short', 'HEAD'
+        standardOutput out
+      }
+      return out.toString().trim()
+    } catch (Throwable t) {
+      String commit = System.getenv('GIT_COMMIT')
+      if (commit == null) {
+        logger.warn('Unable to obtain the latest git commit hash.')
+        return 'latest'
+      }
+      return commit
+    }
+  }.call()
+
+  forgehaxVersion = "3.3.0-${forgehaxCommit}"
+
+  minecraftVersion = '1.16.5'
+  forgeVersion = '36.0.13'
+
+  fmlVersion = '2.0.0-milestone.1'
+  lombokVersion = '1.18.16'
+
+  mcpVersion = '1.16.3'
+  mcpChannel = 'snapshot'
+  mcpMapping = '20201028'
 }
 
 repositories {
@@ -50,7 +60,11 @@ configurations.all {
   resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
 }
 
-final isJenkinsBuilding = System.getProperty("jenkins") != null
+final isJenkinsBuilding = 'yes' == System.getenv("JENKINS_BUILDING")
+
+if (isJenkinsBuilding) {
+  logger.warn 'Jenkins detected. Certain modules will be omitted from this build'
+}
 
 sourceSets {
   api {
@@ -74,8 +88,7 @@ minecraft {
     client {
       workingDirectory project.file('run')
 
-//      property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
-      property 'forge.logging.console.level', 'debug'
+      property 'forge.logging.console.level', 'info'
       property 'forgehax.logging.level', 'debug'
 
       mods {
@@ -88,9 +101,7 @@ minecraft {
 }
 
 mapper {
-  annotatedWith 'dev/fiki/forgehax/main/util/modloader/RegisterMod'
-
-  include sourceSets.main
+  include sourceSets.main, sourceSets.test
 }
 
 dependencies {
@@ -102,13 +113,20 @@ dependencies {
 
   minecraft "net.minecraftforge:forge:${minecraftVersion}-${forgeVersion}"
 
-  testCompile group: 'junit', name: 'junit', version: '4.12'
-  testCompile group: 'org.mockito', name: 'mockito-core', version: '2.15.0'
+  testCompileOnly group: 'org.projectlombok', name: 'lombok', version: lombokVersion
+  testAnnotationProcessor group: 'org.projectlombok', name: 'lombok', version: lombokVersion
+  testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: '5.7.0'
+  testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.7.0'
+  testCompile group: 'org.assertj', name: 'assertj-core', version: '3.18.1'
 }
 
 compileJava {
   // this will allow use to read a constructors parameter names at runtime
   options.compilerArgs << '-parameters'
+}
+
+test {
+  useJUnitPlatform()
 }
 
 jar {
@@ -126,6 +144,8 @@ jar {
 }
 
 processResources {
+  from 'logo.png'
+
   filesMatching('**/config.properties') {
     //noinspection UnnecessaryQualifiedReference
     it.filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
@@ -135,6 +155,43 @@ processResources {
         "forgehax.mcp.version"  : mcpVersion.toString(),
         "forgehax.mcp.channel"  : mcpChannel.toString(),
         "forgehax.mcp.mapping"  : mcpMapping.toString()
+    ]
+  }
+
+  filesMatching('**/mods.toml') {
+    final getMajorVersion = { version ->
+      final pattern = /^(?<major>[0-9]+)\.(?<minor>[0-9]+)\.(?<patch>[0-9]+)$/
+      final res = forgeVersion =~ pattern
+      if (res.find()) {
+        return "[${res.group('major')},)" as String
+      } else {
+        throw new Error("'$version' is not valid semantic versioning!")
+      }
+    }
+
+    final getContributors = { api ->
+      try {
+        final url = new URL(api)
+        final json = new groovy.json.JsonSlurper().parseText(url.text)
+        return String.join(', ', json.collect { it.login })
+      } catch (Throwable t) {
+        logger.warn("Failed to get contributors from GitHub API! Defaulting to hardcoded users...")
+        logger.debug(t.getMessage(), t)
+        return 'fr1kin, BabbaJ, 0x22'
+      }
+    }
+
+    //noinspection UnnecessaryQualifiedReference
+    it.filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+        'forgehax.version'      : project.version as String,
+        'forgehax.forge.version': getMajorVersion.call(forgeVersion),
+        'forgehax.issue.tracker': 'https://github.com/fr1kin/ForgeHax/issues',
+        'forgehax.update.url'   : 'TODO',
+        'forgehax.url'          : 'fiki.dev',
+        'forgehax.logo.file'    : 'logo.png',
+        'forgehax.credits'      : 'Rain#4705 for the logo',
+        'forgehax.authors'      : getContributors.call('https://api.github.com/repos/fr1kin/ForgeHax/contributors'),
+        'forgehax.description'  : 'Hax 4 Forge'
     ]
   }
 }
@@ -153,7 +210,7 @@ task setGameDir() {
 }
 
 task copyJar(type: DefaultTask, dependsOn: [setGameDir]) {
-  if(file(project.ext.gameDir).exists()) {
+  if (file(project.ext.gameDir).exists()) {
     final files = { directory, filter, closure ->
       new File(directory).eachFileMatch(filter, closure)
     }
@@ -174,7 +231,4 @@ task copyJar(type: DefaultTask, dependsOn: [setGameDir]) {
   }
 }
 
-if (!isJenkinsBuilding) {
-  // run this task after build
-  build.finalizedBy copyJar
-}
+build.finalizedBy copyJar

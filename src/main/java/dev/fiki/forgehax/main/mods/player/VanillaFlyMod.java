@@ -1,26 +1,26 @@
 package dev.fiki.forgehax.main.mods.player;
 
-import dev.fiki.forgehax.api.mapper.FieldMapping;
+import dev.fiki.forgehax.api.Switch.Handle;
+import dev.fiki.forgehax.api.asm.MapField;
+import dev.fiki.forgehax.api.cmd.settings.BooleanSetting;
+import dev.fiki.forgehax.api.cmd.settings.FloatSetting;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.events.entity.LocalPlayerUpdateEvent;
+import dev.fiki.forgehax.api.extension.LocalPlayerEx;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
+import dev.fiki.forgehax.api.reflection.ReflectionTools;
+import dev.fiki.forgehax.api.reflection.types.ReflectionField;
 import dev.fiki.forgehax.asm.events.packet.PacketInboundEvent;
 import dev.fiki.forgehax.asm.events.packet.PacketOutboundEvent;
 import dev.fiki.forgehax.main.Common;
-import dev.fiki.forgehax.main.util.Switch.Handle;
-import dev.fiki.forgehax.main.util.cmd.settings.BooleanSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.FloatSetting;
-import dev.fiki.forgehax.main.util.entity.LocalPlayerUtils;
-import dev.fiki.forgehax.main.util.events.LocalPlayerUpdateEvent;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
-import dev.fiki.forgehax.main.util.reflection.ReflectionTools;
-import dev.fiki.forgehax.main.util.reflection.types.ReflectionField;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.play.client.CPlayerPacket;
 import net.minecraft.network.play.server.SPlayerPositionLookPacket;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.shapes.VoxelShape;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -37,19 +37,19 @@ import static java.util.Objects.isNull;
 public class VanillaFlyMod extends ToggleMod {
   private final ReflectionTools common;
 
-  @FieldMapping(parentClass = CPlayerPacket.class, value = "moving")
+  @MapField(parentClass = CPlayerPacket.class, value = "moving")
   private final ReflectionField<Boolean> CPacketPlayer_moving;
 
-  @FieldMapping(parentClass = SPlayerPositionLookPacket.class, value = "x")
+  @MapField(parentClass = SPlayerPositionLookPacket.class, value = "x")
   private final ReflectionField<Double> SPlayerPositionLookPacket_x;
 
-  @FieldMapping(parentClass = SPlayerPositionLookPacket.class, value = "y")
+  @MapField(parentClass = SPlayerPositionLookPacket.class, value = "y")
   private final ReflectionField<Double> SPlayerPositionLookPacket_y;
 
-  @FieldMapping(parentClass = SPlayerPositionLookPacket.class, value = "z")
+  @MapField(parentClass = SPlayerPositionLookPacket.class, value = "z")
   private final ReflectionField<Double> SPlayerPositionLookPacket_z;
 
-  private Handle fly = LocalPlayerUtils.getFlySwitch().createHandle(getName());
+  private Handle fly = LocalPlayerEx.getFlySwitch().createHandle(getName());
 
   @SuppressWarnings("WeakerAccess")
   public final BooleanSetting groundSpoof = newBooleanSetting()
@@ -83,7 +83,7 @@ public class VanillaFlyMod extends ToggleMod {
     fly.disable();
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onLocalPlayerUpdate(LocalPlayerUpdateEvent event) {
     PlayerEntity player = Common.getLocalPlayer();
     if (isNull(player)) {
@@ -99,7 +99,7 @@ public class VanillaFlyMod extends ToggleMod {
     player.abilities.setFlySpeed(0.05f * flySpeed.getValue());
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onPacketSending(PacketOutboundEvent event) {
     PlayerEntity player = Common.getLocalPlayer();
     if (isNull(player)) {
@@ -128,7 +128,7 @@ public class VanillaFlyMod extends ToggleMod {
     common.CPacketPlayer_onGround.set(packet, true);
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onPacketRecieving(PacketInboundEvent event) {
     PlayerEntity player = Common.getLocalPlayer();
     if (isNull(player)) {

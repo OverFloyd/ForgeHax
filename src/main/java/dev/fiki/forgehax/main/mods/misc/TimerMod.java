@@ -1,20 +1,20 @@
 package dev.fiki.forgehax.main.mods.misc;
 
-import dev.fiki.forgehax.api.mapper.FieldMapping;
+import dev.fiki.forgehax.api.asm.MapField;
+import dev.fiki.forgehax.api.cmd.settings.BooleanSetting;
+import dev.fiki.forgehax.api.cmd.settings.FloatSetting;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
+import dev.fiki.forgehax.api.reflection.types.ReflectionField;
 import dev.fiki.forgehax.asm.events.packet.PacketInboundEvent;
 import dev.fiki.forgehax.main.Common;
 import dev.fiki.forgehax.main.services.TickRateService;
-import dev.fiki.forgehax.main.util.cmd.settings.BooleanSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.FloatSetting;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
-import dev.fiki.forgehax.main.util.reflection.types.ReflectionField;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.play.server.SUpdateTimePacket;
 import net.minecraft.util.Timer;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 @RegisterMod(
     name = "Timer",
@@ -23,11 +23,13 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 )
 @RequiredArgsConstructor
 public class TimerMod extends ToggleMod {
-  @FieldMapping(parentClass = Minecraft.class, value = "timer")
+  @MapField(parentClass = Minecraft.class, value = "timer")
   public final ReflectionField<Timer> Minecraft_timer;
 
-  @FieldMapping(parentClass = Timer.class, value = "tickLength")
+  @MapField(parentClass = Timer.class, value = "tickLength")
   public final ReflectionField<Float> Timer_tickLength;
+
+  private final TickRateService tickRateService;
 
   public final FloatSetting factor = newFloatSetting()
       .name("speed")
@@ -65,12 +67,11 @@ public class TimerMod extends ToggleMod {
     }
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onPacketPreceived(PacketInboundEvent event) {
     if (event.getPacket() instanceof SUpdateTimePacket && tpsSync.getValue()) {
-      TickRateService monitor = TickRateService.getInstance();
-      if (!monitor.isEmpty()) {
-        setSpeed((float) (DEFAULT_SPEED / (monitor.getTickrate() / 20.f)));
+      if (!tickRateService.isEmpty()) {
+        setSpeed((float) (DEFAULT_SPEED / (tickRateService.getTickrate() / 20.f)));
       }
     } else {
       updateTimer();
@@ -85,9 +86,8 @@ public class TimerMod extends ToggleMod {
   @Override
   public String getDisplayText() {
     if (tpsSync.getValue()) {
-      TickRateService monitor = TickRateService.getInstance();
-      if (!monitor.isEmpty()) {
-        return String.format("%s[%.2f]", super.getDisplayText(), monitor.getTickrate() / 20);
+      if (!tickRateService.isEmpty()) {
+        return String.format("%s[%.2f]", super.getDisplayText(), tickRateService.getTickrate() / 20);
       }
     } else {
       return String.format("%s[%.2f]", super.getDisplayText(), factor.getValue());

@@ -1,20 +1,21 @@
 package dev.fiki.forgehax.main.mods.ui;
 
+import dev.fiki.forgehax.api.cmd.flag.EnumFlag;
+import dev.fiki.forgehax.api.cmd.settings.BooleanSetting;
+import dev.fiki.forgehax.api.cmd.settings.EnumSetting;
+import dev.fiki.forgehax.api.cmd.settings.LongSetting;
+import dev.fiki.forgehax.api.color.Colors;
+import dev.fiki.forgehax.api.draw.SurfaceHelper;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.events.render.RenderPlaneEvent;
+import dev.fiki.forgehax.api.math.AlignHelper;
+import dev.fiki.forgehax.api.mod.AbstractMod;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.HudMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
 import dev.fiki.forgehax.main.services.TickRateService;
-import dev.fiki.forgehax.main.util.cmd.flag.EnumFlag;
-import dev.fiki.forgehax.main.util.cmd.settings.BooleanSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.EnumSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.LongSetting;
-import dev.fiki.forgehax.main.util.color.Colors;
-import dev.fiki.forgehax.main.util.draw.SurfaceHelper;
-import dev.fiki.forgehax.main.util.math.AlignHelper;
-import dev.fiki.forgehax.main.util.mod.AbstractMod;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.HudMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
+import lombok.RequiredArgsConstructor;
 import net.minecraft.client.gui.screen.ChatScreen;
-import net.minecraftforge.client.event.RenderGameOverlayEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -29,6 +30,7 @@ import static dev.fiki.forgehax.main.Common.*;
     flags = EnumFlag.HIDDEN,
     enabled = true
 )
+@RequiredArgsConstructor
 public class ActiveModList extends HudMod {
   private final BooleanSetting tps_meter = newBooleanSetting()
       .name("tps-meter")
@@ -61,6 +63,8 @@ public class ActiveModList extends HudMod {
       .defaultTo(SortMode.ALPHABETICAL)
       .build();
 
+  private final TickRateService tickRateService;
+
   @Override
   protected AlignHelper.Align getDefaultAlignment() {
     return AlignHelper.Align.TOPLEFT;
@@ -83,13 +87,12 @@ public class ActiveModList extends HudMod {
 
   private String generateTickRateText() {
     String text = "Tick-rate: ";
-    TickRateService monitor = TickRateService.getInstance();
-    if(!monitor.isEmpty()) {
-      text += String.format("%1.2f", monitor.getRealtimeTickrate());
+    if (!tickRateService.isEmpty()) {
+      text += String.format("%1.2f", tickRateService.getRealtimeTickrate());
 
-      if(showLag.getValue()) {
+      if (showLag.getValue()) {
         text += " : ";
-        TickRateService.TickrateTimer current = monitor.getCurrentTimer();
+        TickRateService.TickrateTimer current = tickRateService.getCurrentTimer();
         if (current != null
             && current.getTimeElapsed() > timeoutDisplay.getValue()) {
           text += String.format("%01.1fs", (float) (current.getTimeElapsed() - 1000L) / 1000.f);
@@ -104,8 +107,8 @@ public class ActiveModList extends HudMod {
     return text;
   }
 
-  @SubscribeEvent
-  public void onRenderScreen(RenderGameOverlayEvent.Text event) {
+  @SubscribeListener
+  public void onRenderScreen(RenderPlaneEvent.Back event) {
     int align = alignment.getValue().ordinal();
 
     List<String> text = new ArrayList<>();

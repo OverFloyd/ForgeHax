@@ -1,22 +1,23 @@
 package dev.fiki.forgehax.main;
 
 import com.google.common.base.Strings;
-import dev.fiki.forgehax.common.LoggerProvider;
+import dev.fiki.forgehax.api.FileManager;
+import dev.fiki.forgehax.api.cmd.RootCommand;
+import dev.fiki.forgehax.api.draw.BufferProvider;
+import dev.fiki.forgehax.api.event.EventBus;
+import dev.fiki.forgehax.api.log.ForgeHaxLog4J2Configuration;
+import dev.fiki.forgehax.api.modloader.ModManager;
+import dev.fiki.forgehax.api.modloader.di.DependencyInjector;
+import dev.fiki.forgehax.api.modloader.di.providers.ReflectionProviders;
+import dev.fiki.forgehax.api.reflection.ReflectionTools;
 import dev.fiki.forgehax.main.ui.ConsoleInterface;
-import dev.fiki.forgehax.main.util.FileManager;
-import dev.fiki.forgehax.main.util.cmd.RootCommand;
-import dev.fiki.forgehax.main.util.draw.BufferProvider;
-import dev.fiki.forgehax.main.util.modloader.ModManager;
-import dev.fiki.forgehax.main.util.modloader.di.DependencyInjector;
-import dev.fiki.forgehax.main.util.modloader.di.providers.ReflectionProviders;
-import dev.fiki.forgehax.main.util.reflection.ReflectionTools;
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.extern.log4j.Log4j2;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,19 +25,19 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 @Mod("forgehax")
 @Getter
+@Log4j2
 public class ForgeHax {
   @Getter(AccessLevel.PACKAGE)
   private static ForgeHax instance = null;
 
   private final Path baseDirectory;
-
-  private Logger logger;
 
   private ConfigProperties configProperties;
 
@@ -50,6 +51,8 @@ public class ForgeHax {
 
   private BufferProvider bufferProvider;
 
+  private EventBus eventBus;
+
   public ForgeHax() {
     instance = this;
 
@@ -60,12 +63,7 @@ public class ForgeHax {
   }
 
   public void setup(final FMLClientSetupEvent event) {
-    logger = LoggerProvider.builder()
-        .contextClass(ForgeHax.class)
-        .label("main")
-        .build()
-        .getLogger();
-
+    ForgeHaxLog4J2Configuration.create();
     try {
       configProperties = new ConfigProperties();
 
@@ -74,7 +72,7 @@ public class ForgeHax {
 
       di.addInstance(this, "forgehax");
       di.addInstance(Minecraft.getInstance(), "mc");
-      di.addInstance(logger, "logger");
+      di.addInstance(log, "logger");
 
       rootCommand = new RootCommand();
       rootCommand.setConfigurationDirectory(getBaseDirectory().resolve("config"));
@@ -89,9 +87,13 @@ public class ForgeHax {
       pooledExecutorService = Executors.newFixedThreadPool(Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
       di.addInstance(asyncExecutorService, ExecutorService.class, "async");
       di.addInstance(pooledExecutorService, ExecutorService.class, "threadpool");
+      di.addInstance(Minecraft.getInstance(), Executor.class, "main");
 
       bufferProvider = new BufferProvider();
       di.addInstance(bufferProvider);
+
+      eventBus = new EventBus();
+      di.addInstance(eventBus);
 
       di.module(ConsoleInterface.class, "cli");
       di.module(ReflectionTools.class);
@@ -106,7 +108,7 @@ public class ForgeHax {
       }
 
       if (!modManager.searchPluginDirectory(getBaseDirectory().resolve("plugins"))) {
-        logger.info("No plugins loaded (this is fine)");
+        log.info("No plugins loaded (this is fine)");
       }
 
       // inject all dependencies
@@ -116,10 +118,10 @@ public class ForgeHax {
       modManager.startupMods();
 
       // add shutdown hook to serialize all settings
-      LoggerProvider.addShutdownHook(this::shutdown);
+      ForgeHaxLog4J2Configuration.onLoggerShutdown(this::shutdown);
     } catch (Throwable t) {
-      getLogger().error("Fatal error loading ForgeHax!");
-      getLogger().error(t, t);
+      log.error("Fatal error loading ForgeHax!");
+      log.error(t, t);
 
       // rethrow so forge warns the client about the errors
       throw new Error("ForgeHax failed to initialize", t);
@@ -139,7 +141,7 @@ public class ForgeHax {
       try {
         executorService.awaitTermination(30, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
-        logger.error(e, e);
+        log.error(e, e);
       }
     }
   }
@@ -152,10 +154,10 @@ public class ForgeHax {
         Objects.requireNonNull(is, "Could not find resource config.properties");
         properties.load(is);
       } catch (NullPointerException e) {
-        logger.error(e.getMessage());
+        log.error(e.getMessage());
       } catch (IOException e) {
-        logger.error("Could not load config.properties");
-        logger.error(e, e);
+        log.error("Could not load config.properties");
+        log.error(e, e);
       }
     }
 

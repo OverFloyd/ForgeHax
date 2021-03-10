@@ -1,17 +1,19 @@
 package dev.fiki.forgehax.main.mods.misc;
 
-import dev.fiki.forgehax.api.mapper.FieldMapping;
-import dev.fiki.forgehax.api.mapper.MethodMapping;
-import dev.fiki.forgehax.main.util.SimpleTimer;
-import dev.fiki.forgehax.main.util.cmd.flag.EnumFlag;
-import dev.fiki.forgehax.main.util.cmd.settings.LongSetting;
-import dev.fiki.forgehax.main.util.events.ClientWorldEvent;
-import dev.fiki.forgehax.main.util.events.PreClientTickEvent;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
-import dev.fiki.forgehax.main.util.reflection.types.ReflectionField;
-import dev.fiki.forgehax.main.util.reflection.types.ReflectionMethod;
+import dev.fiki.forgehax.api.SimpleTimer;
+import dev.fiki.forgehax.api.asm.MapField;
+import dev.fiki.forgehax.api.asm.MapMethod;
+import dev.fiki.forgehax.api.cmd.flag.EnumFlag;
+import dev.fiki.forgehax.api.cmd.settings.LongSetting;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.events.game.PreGameTickEvent;
+import dev.fiki.forgehax.api.events.render.GuiChangedEvent;
+import dev.fiki.forgehax.api.events.world.WorldLoadEvent;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
+import dev.fiki.forgehax.api.reflection.types.ReflectionField;
+import dev.fiki.forgehax.api.reflection.types.ReflectionMethod;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import net.minecraft.client.gui.IBidiRenderer;
@@ -22,8 +24,6 @@ import net.minecraft.client.gui.widget.Widget;
 import net.minecraft.client.gui.widget.button.Button;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.util.text.StringTextComponent;
-import net.minecraftforge.client.event.GuiOpenEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import static dev.fiki.forgehax.main.Common.getDisplayScreen;
 import static dev.fiki.forgehax.main.Common.setDisplayScreen;
@@ -36,9 +36,9 @@ import static dev.fiki.forgehax.main.Common.setDisplayScreen;
 )
 @RequiredArgsConstructor
 public class AutoReconnectMod extends ToggleMod {
-  @MethodMapping(parentClass = Screen.class, value = "addButton")
+  @MapMethod(parentClass = Screen.class, value = "addButton")
   private final ReflectionMethod<Widget> Screen_addButton;
-  @FieldMapping(parentClass = ConnectingScreen.class, value = "previousGuiScreen")
+  @MapField(parentClass = ConnectingScreen.class, value = "previousGuiScreen")
   private final ReflectionField<Screen> ConnectingScreen_previousGuiScreen;
 
   public final LongSetting delay = newLongSetting()
@@ -61,9 +61,9 @@ public class AutoReconnectMod extends ToggleMod {
 
     // minutes
     if (ms >= 1000 * 60) {
-      long mins = ms / (1000*60);
+      long mins = ms / (1000 * 60);
       time = mins + "m";
-      ms -= mins * (1000*60);
+      ms -= mins * (1000 * 60);
     }
 
     // seconds
@@ -99,8 +99,8 @@ public class AutoReconnectMod extends ToggleMod {
     forceDisconnected = false;
   }
 
-  @SubscribeEvent
-  public void onGuiOpened(GuiOpenEvent event) {
+  @SubscribeListener
+  public void onGuiOpened(GuiChangedEvent event) {
     if (event.getGui() instanceof ConnectingScreen) {
       // in the connecting screen constructor the server data is set
       lastServer = MC.getCurrentServerData();
@@ -114,8 +114,8 @@ public class AutoReconnectMod extends ToggleMod {
     }
   }
 
-  @SubscribeEvent
-  public void onTick(PreClientTickEvent event) {
+  @SubscribeListener
+  public void onTick(PreGameTickEvent event) {
     if (lastServer == null) {
       lastServer = MC.getCurrentServerData();
     }
@@ -143,94 +143,8 @@ public class AutoReconnectMod extends ToggleMod {
     }
   }
 
-  @SubscribeEvent
-  public void onWorldLoad(ClientWorldEvent.Load event) {
+  @SubscribeListener
+  public void onWorldLoad(WorldLoadEvent event) {
     forceDisconnected = false;
   }
-
-  /*
-  public static class GuiDisconnectedOverride extends DisconnectedScreen {
-    
-    private DisconnectedScreen parent;
-    private ITextComponent message;
-    
-    // delay * 1000 = seconds to miliseconds
-    private long reconnectTime;
-    
-    private Button reconnectButton = null;
-    
-    public GuiDisconnectedOverride(DisconnectedScreen screen,
-        String reasonLocalizationKey,
-        ITextComponent chatComp,
-        String reason,
-        double delay) {
-      super(screen, reasonLocalizationKey, chatComp);
-      parent = screen;
-      message = chatComp;
-      reconnectTime = System.currentTimeMillis() + (long) (delay * 1000);
-      // set variable 'reason' to the previous classes value
-      FastReflection.Fields.GuiDisconnected_reason.set(this, reason);
-      // parse server return text and find queue pos
-    }
-    
-    public long getTimeUntilReconnect() {
-      return reconnectTime - System.currentTimeMillis();
-    }
-    
-    public double getTimeUntilReconnectInSeconds() {
-      return (double) getTimeUntilReconnect() / 1000.D;
-    }
-    
-    public String getFormattedReconnectText() {
-      return String.format("Reconnecting (%.1f)...", getTimeUntilReconnectInSeconds());
-    }
-    
-    public ServerData getLastConnectedServerData() {
-      return lastConnectedServer != null ? lastConnectedServer : MC.getCurrentServerData();
-    }
-    
-    private void reconnect() {
-      ServerData data = getLastConnectedServerData();
-      if (data != null) {
-        FMLClientHandler.instance().showGuiScreen(new GuiConnecting(parent, MC, data));
-      }
-    }
-    
-    @Override
-    public void initGui() {
-      super.initGui();
-      List<String> multilineMessage =
-          fontRenderer.listFormattedStringToWidth(message.getFormattedText(), width - 50);
-      int textHeight = multilineMessage.size() * fontRenderer.FONT_HEIGHT;
-      
-      if (getLastConnectedServerData() != null) {
-        buttonList.add(
-            reconnectButton =
-                new GuiButton(
-                    buttonList.size(),
-                    width / 2 - 100,
-                    (height / 2 + textHeight / 2 + fontRenderer.FONT_HEIGHT) + 23,
-                    getFormattedReconnectText()));
-      }
-    }
-    
-    @Override
-    protected void actionPerformed(GuiButton button) throws IOException {
-      super.actionPerformed(button);
-      if (button.equals(reconnectButton)) {
-        reconnect();
-      }
-    }
-    
-    @Override
-    public void updateScreen() {
-      super.updateScreen();
-      if (reconnectButton != null) {
-        reconnectButton.displayString = getFormattedReconnectText();
-      }
-      if (System.currentTimeMillis() >= reconnectTime) {
-        reconnect();
-      }
-    }
-  }*/
 }

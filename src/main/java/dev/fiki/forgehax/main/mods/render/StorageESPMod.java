@@ -1,17 +1,21 @@
 package dev.fiki.forgehax.main.mods.render;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import dev.fiki.forgehax.main.util.cmd.settings.BooleanSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.ColorSetting;
-import dev.fiki.forgehax.main.util.color.Color;
-import dev.fiki.forgehax.main.util.color.Colors;
-import dev.fiki.forgehax.main.util.draw.BufferBuilderEx;
-import dev.fiki.forgehax.main.util.draw.GeometryMasks;
-import dev.fiki.forgehax.main.util.entity.EntityUtils;
-import dev.fiki.forgehax.main.util.events.RenderEvent;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
+import dev.fiki.forgehax.api.cmd.settings.BooleanSetting;
+import dev.fiki.forgehax.api.cmd.settings.ColorSetting;
+import dev.fiki.forgehax.api.color.Color;
+import dev.fiki.forgehax.api.color.Colors;
+import dev.fiki.forgehax.api.draw.GeometryMasks;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.events.render.RenderSpaceEvent;
+import dev.fiki.forgehax.api.extension.EntityEx;
+import dev.fiki.forgehax.api.extension.VectorEx;
+import dev.fiki.forgehax.api.extension.VertexBuilderEx;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
+import lombok.experimental.ExtensionMethod;
+import lombok.val;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.ShulkerBoxBlock;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
@@ -23,16 +27,16 @@ import net.minecraft.entity.item.minecart.HopperMinecartEntity;
 import net.minecraft.item.BlockItem;
 import net.minecraft.tileentity.*;
 import net.minecraft.util.math.shapes.VoxelShape;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 import org.lwjgl.opengl.GL11;
 
-import static dev.fiki.forgehax.main.Common.*;
+import static dev.fiki.forgehax.main.Common.getWorld;
 
 @RegisterMod(
     name = "StorageESP",
     description = "Shows storage",
     category = Category.RENDER
 )
+@ExtensionMethod({EntityEx.class, VectorEx.class, VertexBuilderEx.class})
 public class StorageESPMod extends ToggleMod {
   private final ColorSetting chestColor = newColorSetting()
       .name("chest-color")
@@ -79,9 +83,9 @@ public class StorageESPMod extends ToggleMod {
   private Color getTileEntityColor(TileEntity te) {
     if (te instanceof ChestTileEntity) {
       return chestColor.getValue();
-    } else if(te instanceof DispenserTileEntity) {
+    } else if (te instanceof DispenserTileEntity) {
       return dispenserColor.getValue();
-    } else if(te instanceof ShulkerBoxTileEntity) {
+    } else if (te instanceof ShulkerBoxTileEntity) {
       return shulkerBoxColor.getValue();
     } else if (te instanceof EnderChestTileEntity) {
       return enderChestColor.getValue();
@@ -96,9 +100,9 @@ public class StorageESPMod extends ToggleMod {
   private Color getEntityColor(Entity e) {
     if (e instanceof ChestMinecartEntity) {
       return chestColor.getValue();
-    } else if(e instanceof FurnaceMinecartEntity) {
+    } else if (e instanceof FurnaceMinecartEntity) {
       return furnaceColor.getValue();
-    } else if(e instanceof HopperMinecartEntity) {
+    } else if (e instanceof HopperMinecartEntity) {
       return hopperColor.getValue();
     } else if (e instanceof ItemFrameEntity
         && ((ItemFrameEntity) e).getDisplayedItem().getItem() instanceof BlockItem
@@ -108,41 +112,44 @@ public class StorageESPMod extends ToggleMod {
     return null;
   }
 
-  @SubscribeEvent
-  public void onRender(RenderEvent event) {
-    BufferBuilderEx buffer = event.getBuffer();
+  @SubscribeListener
+  public void onRender(RenderSpaceEvent event) {
+    val stack = event.getStack();
+    val buffer = event.getBuffer();
+    stack.push();
+    stack.translateVec(event.getProjectedPos().scale(-1));
+
     buffer.beginLines(DefaultVertexFormats.POSITION_COLOR);
 
-    buffer.setTranslation(event.getProjectedPos().scale(-1));
-
-    worldTileEntities().forEach(ent -> {
+    for (TileEntity ent : getWorld().loadedTileEntityList) {
       Color color = getTileEntityColor(ent);
-      if(color != null && color.getAlpha() > 0) {
+      if (color != null && color.getAlpha() > 0) {
         BlockState state = ent.getBlockState();
         VoxelShape voxel = state.getCollisionShape(getWorld(), ent.getPos());
-        if(!voxel.isEmpty()) {
-          buffer.putOutlinedCuboid(voxel.getBoundingBox().offset(ent.getPos()), GeometryMasks.Line.ALL, color);
+        if (!voxel.isEmpty()) {
+          buffer.outlinedCube(voxel.getBoundingBox().offset(ent.getPos()),
+              GeometryMasks.Line.ALL, color, stack.getLastMatrix());
         }
       }
-    });
+    }
 
-    worldEntities().forEach(ent -> {
+    for (Entity ent : getWorld().getAllEntities()) {
       Color color = getEntityColor(ent);
-      if(color != null && color.getAlpha() > 0) {
-        buffer.putOutlinedCuboid(ent.getBoundingBox()
-            .offset(ent.getPositionVec().scale(-1D))
-            .offset(EntityUtils.getInterpolatedPos(ent, event.getPartialTicks())),
-            GeometryMasks.Line.ALL, color);
+      if (color != null && color.getAlpha() > 0) {
+        buffer.outlinedCube(ent.getBoundingBox()
+                .offset(ent.getPositionVec().scale(-1D))
+                .offset(ent.getInterpolatedPos(event.getPartialTicks())),
+            GeometryMasks.Line.ALL, color, stack.getLastMatrix());
       }
-    });
+    }
 
     RenderSystem.enableBlend();
-    if(antiAliasing.getValue()) {
+    if (antiAliasing.getValue()) {
       GL11.glEnable(GL11.GL_LINE_SMOOTH);
     }
 
     buffer.draw();
-
     GL11.glDisable(GL11.GL_LINE_SMOOTH);
+    stack.pop();
   }
 }

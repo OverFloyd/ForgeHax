@@ -1,10 +1,11 @@
 package dev.fiki.forgehax.main;
 
-import dev.fiki.forgehax.main.util.FileManager;
-import dev.fiki.forgehax.main.util.TextComponentBuilder;
-import dev.fiki.forgehax.main.util.cmd.RootCommand;
-import dev.fiki.forgehax.main.util.draw.BufferProvider;
-import dev.fiki.forgehax.main.util.modloader.ModManager;
+import dev.fiki.forgehax.api.FileManager;
+import dev.fiki.forgehax.api.TextComponentBuilder;
+import dev.fiki.forgehax.api.cmd.RootCommand;
+import dev.fiki.forgehax.api.draw.BufferProvider;
+import dev.fiki.forgehax.api.event.EventBus;
+import dev.fiki.forgehax.api.modloader.ModManager;
 import net.minecraft.block.Block;
 import net.minecraft.client.GameSettings;
 import net.minecraft.client.MainWindow;
@@ -25,6 +26,7 @@ import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.loading.FMLLoader;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.IForgeRegistry;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.lwjgl.glfw.GLFW;
 
@@ -51,7 +53,7 @@ public interface Common {
   }
 
   static Logger getLogger() {
-    return getForgeHax().getLogger();
+    return LogManager.getLogger();
   }
 
   static RootCommand getRootCommand() {
@@ -76,6 +78,10 @@ public interface Common {
 
   static BufferProvider getBufferProvider() {
     return getForgeHax().getBufferProvider();
+  }
+
+  static EventBus getEventBus() {
+    return getForgeHax().getEventBus();
   }
 
   //

@@ -1,16 +1,16 @@
 package dev.fiki.forgehax.main.mods.player;
 
-import dev.fiki.forgehax.api.mapper.MethodMapping;
+import dev.fiki.forgehax.api.asm.MapMethod;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
+import dev.fiki.forgehax.api.reflection.types.ReflectionMethod;
 import dev.fiki.forgehax.asm.events.packet.PacketInboundEvent;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
-import dev.fiki.forgehax.main.util.reflection.types.ReflectionMethod;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.network.play.client.CHeldItemChangePacket;
 import net.minecraft.network.play.server.SSetSlotPacket;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import static dev.fiki.forgehax.main.Common.*;
 
@@ -24,10 +24,10 @@ import static dev.fiki.forgehax.main.Common.*;
 )
 @RequiredArgsConstructor
 public class AntiHeldItemChangeMod extends ToggleMod {
-  @MethodMapping(parentClass = KeyBinding.class, value = "unpressKey")
+  @MapMethod(parentClass = KeyBinding.class, value = "unpressKey")
   private final ReflectionMethod<Void> KeyBinding_unpressKey;
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onPacketReceived(PacketInboundEvent event) {
     if (event.getPacket() instanceof SSetSlotPacket && getLocalPlayer() != null) {
       int currentSlot = getLocalPlayer().inventory.currentItem;

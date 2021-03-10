@@ -3,24 +3,25 @@ package dev.fiki.forgehax.main.mods.misc;
 import com.google.common.collect.EvictingQueue;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Queues;
+import dev.fiki.forgehax.api.cmd.settings.BooleanSetting;
+import dev.fiki.forgehax.api.cmd.settings.EnumSetting;
+import dev.fiki.forgehax.api.cmd.settings.IntegerSetting;
+import dev.fiki.forgehax.api.cmd.settings.LongSetting;
+import dev.fiki.forgehax.api.color.Colors;
+import dev.fiki.forgehax.api.draw.GeometryMasks;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.events.render.RenderSpaceEvent;
+import dev.fiki.forgehax.api.extension.VertexBuilderEx;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
 import dev.fiki.forgehax.asm.events.packet.PacketInboundEvent;
-import dev.fiki.forgehax.main.util.cmd.settings.BooleanSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.EnumSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.IntegerSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.LongSetting;
-import dev.fiki.forgehax.main.util.color.Colors;
-import dev.fiki.forgehax.main.util.draw.BufferBuilderEx;
-import dev.fiki.forgehax.main.util.draw.GeometryMasks;
-import dev.fiki.forgehax.main.util.events.RenderEvent;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
+import lombok.experimental.ExtensionMethod;
+import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.network.play.server.SChunkDataPacket;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.ChunkPos;
-import net.minecraftforge.event.world.ChunkEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import java.util.List;
 import java.util.Objects;
@@ -33,6 +34,7 @@ import java.util.concurrent.locks.ReentrantLock;
     description = "Show new chunks",
     category = Category.MISC
 )
+@ExtensionMethod({VertexBuilderEx.class})
 public class ChunkLogger extends ToggleMod {
   enum ShowChunkEnum {
     ALL,
@@ -136,13 +138,7 @@ public class ChunkLogger extends ToggleMod {
     }
   }
 
-  @SubscribeEvent
-  public void onChunkLoad(ChunkEvent.Load event) {
-    if (chunks != null) {
-    }
-  }
-
-  @SubscribeEvent
+  @SubscribeListener
   public void onPacketInbound(PacketInboundEvent event) {
     if (event.getPacket() instanceof SChunkDataPacket) {
       SChunkDataPacket packet = (SChunkDataPacket) event.getPacket();
@@ -150,13 +146,13 @@ public class ChunkLogger extends ToggleMod {
     }
   }
 
-  @SubscribeEvent
-  public void onRender(RenderEvent event) {
+  @SubscribeListener
+  public void onRender(RenderSpaceEvent event) {
     if (chunks == null) {
       return;
     }
 
-    BufferBuilderEx builder = event.getBuffer();
+    BufferBuilder builder = event.getBuffer();
     builder.beginLines(DefaultVertexFormats.POSITION_COLOR);
 
     List<ChunkData> copy;
@@ -184,8 +180,8 @@ public class ChunkLogger extends ToggleMod {
           break;
       }
 
-      builder.putOutlinedCuboid(chunk.bbox, GeometryMasks.Quad.ALL,
-          chunk.isNewChunk() ? Colors.WHITE : Colors.RED);
+      builder.outlinedCube(chunk.bbox, GeometryMasks.Quad.ALL,
+          chunk.isNewChunk() ? Colors.WHITE : Colors.RED, null);
     });
 
     builder.draw();

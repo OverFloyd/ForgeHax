@@ -1,19 +1,19 @@
 package dev.fiki.forgehax.main.mods.player;
 
+import dev.fiki.forgehax.api.Switch.Handle;
+import dev.fiki.forgehax.api.cmd.settings.BooleanSetting;
+import dev.fiki.forgehax.api.cmd.settings.EnumSetting;
+import dev.fiki.forgehax.api.cmd.settings.FloatSetting;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.events.entity.LocalPlayerUpdateEvent;
+import dev.fiki.forgehax.api.extension.LocalPlayerEx;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
 import dev.fiki.forgehax.asm.events.movement.ClampMotionSpeedEvent;
 import dev.fiki.forgehax.asm.events.movement.ElytraFlyMovementEvent;
 import dev.fiki.forgehax.main.Common;
-import dev.fiki.forgehax.main.util.Switch.Handle;
-import dev.fiki.forgehax.main.util.cmd.settings.BooleanSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.EnumSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.FloatSetting;
-import dev.fiki.forgehax.main.util.entity.LocalPlayerUtils;
-import dev.fiki.forgehax.main.util.events.LocalPlayerUpdateEvent;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
 import net.minecraft.network.play.client.CEntityActionPacket;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import static dev.fiki.forgehax.main.Common.getGameSettings;
 import static dev.fiki.forgehax.main.Common.getLocalPlayer;
@@ -48,7 +48,7 @@ public class ElytraFlight extends ToggleMod {
       .defaultTo(FlyMode.SLOW_FALL)
       .build();
 
-  private final Handle flying = LocalPlayerUtils.getFlySwitch().createHandle(getName());
+  private final Handle flying = LocalPlayerEx.getFlySwitch().createHandle(getName());
 
   @Override
   protected void onEnabled() {
@@ -72,21 +72,21 @@ public class ElytraFlight extends ToggleMod {
     }
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onElytraMovement(ElytraFlyMovementEvent event) {
     if(!FlyMode.FLIGHT.equals(mode.getValue())) {
       event.setCanceled(true);
     }
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onClampMotion(ClampMotionSpeedEvent event) {
     if(!FlyMode.FLIGHT.equals(mode.getValue())) {
       event.setCanceled(true);
     }
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onLocalPlayerUpdate(LocalPlayerUpdateEvent event) {
     if(FlyMode.FLIGHT.equals(mode.getValue())) {
       if (getLocalPlayer().isElytraFlying()) {

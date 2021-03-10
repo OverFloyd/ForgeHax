@@ -1,25 +1,26 @@
 package dev.fiki.forgehax.main.mods.render;
 
 import com.mojang.blaze3d.platform.GlStateManager;
+import dev.fiki.forgehax.api.cmd.settings.BooleanSetting;
+import dev.fiki.forgehax.api.cmd.settings.EnumSetting;
+import dev.fiki.forgehax.api.cmd.settings.IntegerSetting;
+import dev.fiki.forgehax.api.color.Color;
+import dev.fiki.forgehax.api.color.Colors;
+import dev.fiki.forgehax.api.entity.RelationState;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.events.render.RenderPlaneEvent;
+import dev.fiki.forgehax.api.extension.EntityEx;
+import dev.fiki.forgehax.api.math.AngleUtil;
+import dev.fiki.forgehax.api.math.ScreenPos;
+import dev.fiki.forgehax.api.math.VectorUtil;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
 import dev.fiki.forgehax.main.Common;
-import dev.fiki.forgehax.main.util.cmd.settings.BooleanSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.EnumSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.IntegerSetting;
-import dev.fiki.forgehax.main.util.color.Color;
-import dev.fiki.forgehax.main.util.color.Colors;
-import dev.fiki.forgehax.main.util.entity.EntityUtils;
-import dev.fiki.forgehax.main.util.entity.mobtypes.RelationState;
-import dev.fiki.forgehax.main.util.events.Render2DEvent;
-import dev.fiki.forgehax.main.util.math.AngleHelper;
-import dev.fiki.forgehax.main.util.math.ScreenPos;
-import dev.fiki.forgehax.main.util.math.VectorUtils;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
+import lombok.experimental.ExtensionMethod;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.math.vector.Vector3d;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 import org.lwjgl.opengl.GL11;
 
 import java.util.Objects;
@@ -34,6 +35,7 @@ import static org.lwjgl.opengl.GL11.glEnd;
     description = "See where other players are",
     category = Category.RENDER
 )
+@ExtensionMethod({EntityEx.class})
 public class Tracers extends ToggleMod implements Colors {
 
   enum Mode {
@@ -87,8 +89,8 @@ public class Tracers extends ToggleMod implements Colors {
       .defaultTo(true)
       .build();
 
-  @SubscribeEvent
-  public void onDrawScreen(Render2DEvent event) {
+  @SubscribeListener
+  public void onDrawScreen(RenderPlaneEvent.Back event) {
 
     enableBlend();
     blendFuncSeparate(
@@ -119,9 +121,8 @@ public class Tracers extends ToggleMod implements Colors {
               Entity entity = er.getEntity();
               RelationState relationship = er.getRelationship();
 
-              Vector3d entityPos =
-                  EntityUtils.getInterpolatedEyePos(entity, Common.MC.getRenderPartialTicks());
-              ScreenPos screenPos = VectorUtils.toScreen(entityPos);
+              Vector3d entityPos = entity.getInterpolatedEyePos(MC.getRenderPartialTicks());
+              ScreenPos screenPos = VectorUtil.toScreen(entityPos);
 
               Color color = er.getColor().setAlpha(alpha.getValue());
               color4f(color.getRedAsFloat(),
@@ -188,7 +189,7 @@ public class Tracers extends ToggleMod implements Colors {
                   }
 
                   // normalize
-                  ang = (float) AngleHelper.normalizeInDegrees(ang);
+                  ang = (float) AngleUtil.normalizeInDegrees(ang);
 
                   // --------------------
 
@@ -246,7 +247,7 @@ public class Tracers extends ToggleMod implements Colors {
     public EntityRelations(Entity entity) {
       Objects.requireNonNull(entity);
       this.entity = entity;
-      this.relationship = EntityUtils.getRelationship(entity);
+      this.relationship = entity.getPlayerRelationship();
     }
 
     public Entity getEntity() {

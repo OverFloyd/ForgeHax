@@ -1,14 +1,14 @@
 package dev.fiki.forgehax.main.mods.player;
 
-import dev.fiki.forgehax.api.mapper.FieldMapping;
-import dev.fiki.forgehax.main.util.events.LocalPlayerUpdateEvent;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
-import dev.fiki.forgehax.main.util.reflection.types.ReflectionField;
+import dev.fiki.forgehax.api.asm.MapField;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.events.entity.LocalPlayerUpdateEvent;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
+import dev.fiki.forgehax.api.reflection.types.ReflectionField;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.entity.Entity;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import static dev.fiki.forgehax.main.Common.getLocalPlayer;
 
@@ -19,10 +19,10 @@ import static dev.fiki.forgehax.main.Common.getLocalPlayer;
 )
 @RequiredArgsConstructor
 public class PortalGui extends ToggleMod {
-  @FieldMapping(parentClass = Entity.class, value = "inPortal")
+  @MapField(parentClass = Entity.class, value = "inPortal")
   private final ReflectionField<Boolean> Entity_inPortal;
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onLocalPlayerUpdate(LocalPlayerUpdateEvent event) {
     Entity_inPortal.set(getLocalPlayer(), false);
   }

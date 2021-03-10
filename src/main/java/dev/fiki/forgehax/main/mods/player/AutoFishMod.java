@@ -1,14 +1,16 @@
 package dev.fiki.forgehax.main.mods.player;
 
-import dev.fiki.forgehax.api.mapper.MethodMapping;
+import dev.fiki.forgehax.api.asm.MapMethod;
+import dev.fiki.forgehax.api.cmd.settings.DoubleSetting;
+import dev.fiki.forgehax.api.cmd.settings.IntegerSetting;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.events.entity.LocalPlayerUpdateEvent;
+import dev.fiki.forgehax.api.events.game.MouseInputEvent;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
+import dev.fiki.forgehax.api.reflection.types.ReflectionMethod;
 import dev.fiki.forgehax.asm.events.packet.PacketInboundEvent;
-import dev.fiki.forgehax.main.util.cmd.settings.DoubleSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.IntegerSetting;
-import dev.fiki.forgehax.main.util.events.LocalPlayerUpdateEvent;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
-import dev.fiki.forgehax.main.util.reflection.types.ReflectionMethod;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.player.ClientPlayerEntity;
@@ -18,8 +20,6 @@ import net.minecraft.item.Items;
 import net.minecraft.network.play.server.SPlaySoundEffectPacket;
 import net.minecraft.util.SoundEvents;
 import net.minecraft.util.math.vector.Vector3d;
-import net.minecraftforge.client.event.InputEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import static dev.fiki.forgehax.main.Common.*;
 
@@ -33,7 +33,7 @@ import static dev.fiki.forgehax.main.Common.*;
 )
 @RequiredArgsConstructor
 public class AutoFishMod extends ToggleMod {
-  @MethodMapping(parentClass = Minecraft.class, value = "rightClickMouse")
+  @MapMethod(parentClass = Minecraft.class, value = "rightClickMouse")
   private final ReflectionMethod<Void> Minecraft_rightClickMouse;
 
   private int ticksCastDelay = 0;
@@ -93,7 +93,7 @@ public class AutoFishMod extends ToggleMod {
     resetLocals();
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onUpdate(LocalPlayerUpdateEvent event) {
     ClientPlayerEntity me = getLocalPlayer();
     ItemStack heldStack = me.getHeldItemMainhand();
@@ -134,14 +134,14 @@ public class AutoFishMod extends ToggleMod {
     }
   }
 
-  @SubscribeEvent
-  public void onMouseEvent(InputEvent.MouseInputEvent event) {
+  @SubscribeListener
+  public void onMouseEvent(MouseInputEvent event) {
     if (getGameSettings().keyBindUseItem.isKeyDown() && ticksHookDeployed > 0) {
       ticksCastDelay = castingDelay.getValue();
     }
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onPacketIncoming(PacketInboundEvent event) {
     if (event.getPacket() instanceof SPlaySoundEffectPacket) {
       SPlaySoundEffectPacket packet = (SPlaySoundEffectPacket) event.getPacket();

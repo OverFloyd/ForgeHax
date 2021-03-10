@@ -1,17 +1,18 @@
 package dev.fiki.forgehax.main.mods.player;
 
-import dev.fiki.forgehax.asm.events.RenderBoatEvent;
+import dev.fiki.forgehax.api.cmd.settings.BooleanSetting;
+import dev.fiki.forgehax.api.cmd.settings.DoubleSetting;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.events.entity.LocalPlayerUpdateEvent;
+import dev.fiki.forgehax.api.events.game.PreGameTickEvent;
+import dev.fiki.forgehax.api.extension.EntityEx;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
+import dev.fiki.forgehax.api.reflection.ReflectionTools;
 import dev.fiki.forgehax.asm.events.boat.ClampBoatEvent;
+import dev.fiki.forgehax.asm.events.boat.RenderBoatEvent;
 import dev.fiki.forgehax.asm.events.boat.RowBoatEvent;
-import dev.fiki.forgehax.main.util.cmd.settings.BooleanSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.DoubleSetting;
-import dev.fiki.forgehax.main.util.entity.EntityUtils;
-import dev.fiki.forgehax.main.util.events.LocalPlayerUpdateEvent;
-import dev.fiki.forgehax.main.util.events.PreClientTickEvent;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
-import dev.fiki.forgehax.main.util.reflection.ReflectionTools;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.util.MovementInput;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -57,18 +58,18 @@ public class BoatFly extends ToggleMod {
       .defaultTo(true)
       .build();
 
-  @SubscribeEvent // disable gravity
+  @SubscribeListener // disable gravity
   public void onLocalPlayerUpdate(LocalPlayerUpdateEvent event) {
 //    ForgeHaxHooks.isNoBoatGravityActivated =
 //        getMountedEntity() instanceof BoatEntity; // disable gravity if in boat
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onClampBoatAngles(ClampBoatEvent event) {
     event.setCanceled(noClamp.isEnabled());
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onBoatRowing(RowBoatEvent event) {
     event.setCanceled(true);
   }
@@ -83,7 +84,7 @@ public class BoatFly extends ToggleMod {
 
   @SubscribeEvent
   public void onRenderBoat(RenderBoatEvent event) {
-    if (EntityUtils.isDrivenByPlayer(event.getBoat()) && setYaw.getValue()) {
+    if (EntityEx.isDrivenByPlayer(event.getBoat()) && setYaw.getValue()) {
       float yaw = getLocalPlayer().rotationYaw;
       event.getBoat().rotationYaw = yaw;
       event.setYaw(yaw);
@@ -91,7 +92,7 @@ public class BoatFly extends ToggleMod {
   }
 
   @SubscribeEvent
-  public void onClientTick(PreClientTickEvent event) {
+  public void onClientTick(PreGameTickEvent event) {
     // check if the player is really riding a entity
     if (getLocalPlayer() != null && getMountedEntity() != null) {
 

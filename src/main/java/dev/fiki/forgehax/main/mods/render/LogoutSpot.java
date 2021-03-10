@@ -1,28 +1,33 @@
 package dev.fiki.forgehax.main.mods.render;
 
 import com.google.common.collect.Sets;
-import dev.fiki.forgehax.main.util.cmd.settings.BooleanSetting;
-import dev.fiki.forgehax.main.util.cmd.settings.IntegerSetting;
-import dev.fiki.forgehax.main.util.color.Colors;
-import dev.fiki.forgehax.main.util.draw.BufferBuilderEx;
-import dev.fiki.forgehax.main.util.draw.GeometryMasks;
-import dev.fiki.forgehax.main.util.draw.SurfaceHelper;
-import dev.fiki.forgehax.main.util.events.LocalPlayerUpdateEvent;
-import dev.fiki.forgehax.main.util.events.PlayerConnectEvent;
-import dev.fiki.forgehax.main.util.events.Render2DEvent;
-import dev.fiki.forgehax.main.util.events.RenderEvent;
-import dev.fiki.forgehax.main.util.math.ScreenPos;
-import dev.fiki.forgehax.main.util.math.VectorUtils;
-import dev.fiki.forgehax.main.util.mod.Category;
-import dev.fiki.forgehax.main.util.mod.ToggleMod;
-import dev.fiki.forgehax.main.util.modloader.RegisterMod;
+import dev.fiki.forgehax.api.cmd.settings.BooleanSetting;
+import dev.fiki.forgehax.api.cmd.settings.IntegerSetting;
+import dev.fiki.forgehax.api.color.Colors;
+import dev.fiki.forgehax.api.common.PriorityEnum;
+import dev.fiki.forgehax.api.draw.GeometryMasks;
+import dev.fiki.forgehax.api.draw.SurfaceHelper;
+import dev.fiki.forgehax.api.event.SubscribeListener;
+import dev.fiki.forgehax.api.events.PlayerConnectEvent;
+import dev.fiki.forgehax.api.events.entity.LocalPlayerUpdateEvent;
+import dev.fiki.forgehax.api.events.render.RenderPlaneEvent;
+import dev.fiki.forgehax.api.events.render.RenderSpaceEvent;
+import dev.fiki.forgehax.api.events.world.WorldChangeEvent;
+import dev.fiki.forgehax.api.extension.VectorEx;
+import dev.fiki.forgehax.api.extension.VertexBuilderEx;
+import dev.fiki.forgehax.api.math.ScreenPos;
+import dev.fiki.forgehax.api.math.VectorUtil;
+import dev.fiki.forgehax.api.mod.Category;
+import dev.fiki.forgehax.api.mod.ToggleMod;
+import dev.fiki.forgehax.api.modloader.RegisterMod;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.experimental.ExtensionMethod;
+import lombok.val;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.vector.Vector3d;
-import net.minecraftforge.event.world.WorldEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import java.util.Set;
 import java.util.UUID;
@@ -34,6 +39,7 @@ import static dev.fiki.forgehax.main.Common.*;
     description = "Show where a player logs out",
     category = Category.RENDER
 )
+@ExtensionMethod({VectorEx.class, VertexBuilderEx.class})
 public class LogoutSpot extends ToggleMod {
   private final BooleanSetting render = newBooleanSetting()
       .name("render")
@@ -41,13 +47,13 @@ public class LogoutSpot extends ToggleMod {
       .defaultTo(true)
       .build();
 
-  private final IntegerSetting max_distance = newIntegerSetting()
+  private final IntegerSetting maxDistance = newIntegerSetting()
       .name("max-distance")
       .description("Distance from box before deleting it")
       .defaultTo(320)
       .build();
 
-  private final BooleanSetting print_message = newBooleanSetting()
+  private final BooleanSetting printMessage = newBooleanSetting()
       .name("print-message")
       .description("Print connect/disconnect messages in chat")
       .defaultTo(true)
@@ -70,7 +76,7 @@ public class LogoutSpot extends ToggleMod {
   }
 
   private void printWarning(String fmt, Object... args) {
-    if (print_message.getValue()) {
+    if (printMessage.getValue()) {
       printWarning(fmt, args);
     }
   }
@@ -80,7 +86,7 @@ public class LogoutSpot extends ToggleMod {
     reset();
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onPlayerConnect(PlayerConnectEvent.Join event) {
     synchronized (spots) {
       if (spots.removeIf(spot -> spot.getId().equals(event.getPlayerInfo().getUuid()))) {
@@ -89,7 +95,7 @@ public class LogoutSpot extends ToggleMod {
     }
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onPlayerDisconnect(PlayerConnectEvent.Leave event) {
     if (!isInWorld()) {
       return;
@@ -99,20 +105,18 @@ public class LogoutSpot extends ToggleMod {
     if (player != null && getLocalPlayer() != null && !getLocalPlayer().equals(player)) {
       AxisAlignedBB bb = player.getBoundingBox();
       synchronized (spots) {
-        if (spots.add(
-            new LogoutPos(
-                event.getPlayerInfo().getUuid(),
-                event.getPlayerInfo().getName(),
-                new Vector3d(bb.maxX, bb.maxY, bb.maxZ),
-                new Vector3d(bb.minX, bb.minY, bb.minZ)))) {
+        if (spots.add(new LogoutPos(
+            event.getPlayerInfo().getUuid(),
+            event.getPlayerInfo().getName(),
+            bb.getMaxs(), bb.getMins()))) {
           printWarning("%s has disconnected!", event.getPlayerInfo().getName());
         }
       }
     }
   }
 
-  @SubscribeEvent(priority = EventPriority.LOW)
-  public void onRenderGameOverlayEvent(Render2DEvent event) {
+  @SubscribeListener(priority = PriorityEnum.LOW)
+  public void onRenderGameOverlayEvent(RenderPlaneEvent.Back event) {
     if (!render.getValue()) {
       return;
     }
@@ -120,85 +124,65 @@ public class LogoutSpot extends ToggleMod {
     synchronized (spots) {
       spots.forEach(spot -> {
         Vector3d top = spot.getTopVec();
-        ScreenPos upper = VectorUtils.toScreen(top);
+        ScreenPos upper = VectorUtil.toScreen(top);
         if (upper.isVisible()) {
           double distance = getLocalPlayer().getPositionVec().distanceTo(top);
           String name = String.format("%s (%.1f)", spot.getName(), distance);
           SurfaceHelper.drawTextShadow(
               name,
-              (float)(upper.getX() - (SurfaceHelper.getStringWidth(name) / 2.f)),
-              (float)(upper.getY() - (SurfaceHelper.getStringHeight() + 1.f)),
+              (float) (upper.getX() - (SurfaceHelper.getStringWidth(name) / 2.f)),
+              (float) (upper.getY() - (SurfaceHelper.getStringHeight() + 1.f)),
               Colors.RED.toBuffer());
         }
       });
     }
   }
 
-  @SubscribeEvent
-  public void onRender(RenderEvent event) {
+  @SubscribeListener
+  public void onRender(RenderSpaceEvent event) {
     if (!render.getValue()) {
       return;
     }
 
-    BufferBuilderEx builder = event.getBuffer();
+    val stack = event.getStack();
+    val builder = event.getBuffer();
+    stack.push();
+
     builder.beginLines(DefaultVertexFormats.POSITION_COLOR);
 
     synchronized (spots) {
-      spots.forEach(spot -> builder.putOutlinedCuboid(spot.getMins(), spot.getMaxs(),
-          GeometryMasks.Line.ALL, Colors.RED));
+      for (LogoutPos spot : spots) {
+        builder.outlinedCube(spot.getMins(), spot.getMaxs(),
+            GeometryMasks.Line.ALL, Colors.RED, stack.getLastMatrix());
+      }
     }
 
     builder.draw();
+    stack.pop();
   }
 
-  @SubscribeEvent
+  @SubscribeListener
   public void onPlayerUpdate(LocalPlayerUpdateEvent event) {
-    if (max_distance.getValue() > 0) {
+    if (maxDistance.getValue() > 0) {
       synchronized (spots) {
         spots.removeIf(pos -> getLocalPlayer().getPositionVec().distanceTo(pos.getTopVec())
-            > max_distance.getValue());
+            > maxDistance.getValue());
       }
     }
   }
 
-  @SubscribeEvent
-  public void onWorldUnload(WorldEvent.Unload event) {
+  @SubscribeListener
+  public void onWorldChange(WorldChangeEvent event) {
     reset();
   }
 
-  @SubscribeEvent
-  public void onWorldLoad(WorldEvent.Load event) {
-    reset();
-  }
-
+  @Getter
+  @AllArgsConstructor
   private static class LogoutPos {
     final UUID id;
     final String name;
     final Vector3d maxs;
     final Vector3d mins;
-
-    private LogoutPos(UUID uuid, String name, Vector3d maxs, Vector3d mins) {
-      this.id = uuid;
-      this.name = name;
-      this.maxs = maxs;
-      this.mins = mins;
-    }
-
-    public UUID getId() {
-      return id;
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    public Vector3d getMaxs() {
-      return maxs;
-    }
-
-    public Vector3d getMins() {
-      return mins;
-    }
 
     public Vector3d getTopVec() {
       return new Vector3d(
