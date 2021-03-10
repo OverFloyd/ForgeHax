@@ -4,6 +4,7 @@ import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.systems.RenderSystem;
 import dev.fiki.forgehax.api.Switch.Handle;
 import dev.fiki.forgehax.api.asm.MapField;
+import dev.fiki.forgehax.api.cmd.settings.BooleanSetting;
 import dev.fiki.forgehax.api.cmd.settings.FloatSetting;
 import dev.fiki.forgehax.api.event.SubscribeListener;
 import dev.fiki.forgehax.api.events.entity.LocalPlayerUpdateEvent;
@@ -32,6 +33,7 @@ import net.minecraft.network.play.client.CPlayerPacket;
 import net.minecraft.network.play.server.SPlayerPositionLookPacket;
 import net.minecraft.util.math.vector.Vector3d;
 import net.minecraft.world.GameType;
+import org.lwjgl.opengl.GL11;
 
 import static dev.fiki.forgehax.main.Common.*;
 
@@ -48,11 +50,19 @@ public class FreecamMod extends ToggleMod {
   @MapField(parentClass = NetworkPlayerInfo.class, value = "gameType")
   private final ReflectionField<GameType> NetworkPlayerInfo_gameType;
 
-  private final FloatSetting speed = newFloatSetting()
-      .name("speed")
-      .description("Movement speed")
-      .defaultTo(0.05f)
-      .build();
+  private final FloatSetting speed =
+      newFloatSetting()
+          .name("speed")
+          .description("Movement speed")
+          .defaultTo(0.05f)
+          .build();
+
+  public final BooleanSetting motionStop =
+      newBooleanSetting()
+          .name("motion-stop")
+          .description("Stops moving when no bind is pressed")
+          .defaultTo(true)
+          .build();
 
   private final Handle flying = LocalPlayerEx.getFlySwitch().createHandle(getName());
 
@@ -110,10 +120,12 @@ public class FreecamMod extends ToggleMod {
 
   @Override
   public void onDisabled() {
-    flying.disable();
-
     if (getLocalPlayer() == null || mockPlayer == null) {
       return;
+    }
+
+    if (!(getLocalPlayer().isCreative() || getLocalPlayer().isSpectator())) { // creative flag
+      flying.disable();
     }
 
     getLocalPlayer().setPositionAndRotation(pos.getX(), pos.getY(), pos.getZ(), angle.getYaw(), angle.getPitch());
@@ -150,6 +162,17 @@ public class FreecamMod extends ToggleMod {
     getLocalPlayer().noClip = true;
     reflection.Entity_onGround.set(getLocalPlayer(), false);
     getLocalPlayer().fallDistance = 0;
+
+    if (motionStop.getValue()) {
+      if (!getGameSettings().keyBindForward.isKeyDown()
+          && !getGameSettings().keyBindBack.isKeyDown()
+          && !getGameSettings().keyBindLeft.isKeyDown()
+          && !getGameSettings().keyBindRight.isKeyDown()
+          && !getGameSettings().keyBindSneak.isKeyDown()
+          && !getGameSettings().keyBindJump.isKeyDown()) {
+        getLocalPlayer().setVelocity(0, 0, 0);
+      }
+    }
   }
 
   @SubscribeListener
@@ -163,7 +186,7 @@ public class FreecamMod extends ToggleMod {
       IRenderTypeBuffer.Impl buffer = MC.getRenderTypeBuffers().getBufferSource();
 
       RenderSystem.enableBlend();
-      RenderSystem.color4f(1.f ,1.f ,1.f, 0.5f);
+      GL11.glColor4f(1.f, 1.f, 1.f, 0.5f);
 
       MC.getRenderManager().renderEntityStatic(mockPlayer,
           pos.getX(), pos.getY(), pos.getZ(), mockPlayer.rotationYaw,
@@ -177,7 +200,7 @@ public class FreecamMod extends ToggleMod {
 
 //      RenderSystem.depthMask(true);
 
-      RenderSystem.color4f(1.f ,1.f ,1.f, 1.0f);
+      GL11.glColor4f(1.f, 1.f, 1.f, 1.0f);
 
       buffer.finish();
       stack.pop();
@@ -192,7 +215,7 @@ public class FreecamMod extends ToggleMod {
 
   @SubscribeListener
   public void onPacketSend(PacketOutboundEvent event) {
-    if(mockPlayer == null) return;
+    if (mockPlayer == null) return;
 
     if (event.getPacket() instanceof CPlayerPacket || event.getPacket() instanceof CInputPacket) {
       event.setCanceled(true);

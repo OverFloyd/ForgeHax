@@ -118,6 +118,10 @@ public interface Common {
     return MC.player;
   }
 
+  static Entity getViewEntity() {
+    return MC.getRenderViewEntity();
+  }
+
   static Entity getMountedEntity() {
     return getLocalPlayer() == null ? null : getLocalPlayer().getRidingEntity();
   }
